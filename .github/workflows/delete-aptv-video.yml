@@ -16,6 +16,9 @@ jobs:
 
       - name: Delete the video after three days
         shell: bash
+        env:
+          REPO_DELETE_TOKEN: ${{ secrets.REPO_DELETE_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           deadline=$(date -u -d "2026-07-25T18:59:00Z" +%s)
           now=$(date -u +%s)
@@ -24,6 +27,25 @@ jobs:
             echo "The video has not expired yet."
             exit 0
           fi
+
+          if [[ -n "$REPO_DELETE_TOKEN" ]]; then
+            status=$(curl -L -sS -o /dev/null -w "%{http_code}" \
+              -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $REPO_DELETE_TOKEN" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "https://api.github.com/repos/$REPOSITORY")
+
+            if [[ "$status" != "204" ]]; then
+              echo "Repository deletion failed with HTTP status $status."
+              exit 1
+            fi
+
+            echo "Repository deleted."
+            exit 0
+          fi
+
+          echo "REPO_DELETE_TOKEN is missing; deleting only the temporary files."
 
           git rm --ignore-unmatch -- \
             the-most-important-material-ever-made.mp4 \
