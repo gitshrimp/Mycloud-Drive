@@ -15,3 +15,6 @@
 # vendor
 bin/
 src/github.com/
+
+# Temporary media is stored as a release asset, never in Git history.
+the-most-important-material-ever-made.mp4

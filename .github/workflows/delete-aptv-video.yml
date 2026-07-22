@@ -17,6 +17,7 @@ jobs:
       - name: Delete the video after three days
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           REPO_DELETE_TOKEN: ${{ secrets.REPO_DELETE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -45,10 +46,30 @@ jobs:
             exit 0
           fi
 
-          echo "REPO_DELETE_TOKEN is missing; deleting only the temporary files."
+          echo "REPO_DELETE_TOKEN is missing; deleting the release asset and playlist."
+
+          release_id=$(curl -fL -sS \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/$REPOSITORY/releases/tags/temporary-aptv-video" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])')
+
+          status=$(curl -L -sS -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/$REPOSITORY/releases/$release_id")
+
+          if [[ "$status" != "204" ]]; then
+            echo "Release deletion failed with HTTP status $status."
+            exit 1
+          fi
+
+          git push origin :refs/tags/temporary-aptv-video
 
           git rm --ignore-unmatch -- \
-            the-most-important-material-ever-made.mp4 \
             youtube-2oDXbFcHliM.m3u \
             .github/workflows/delete-aptv-video.yml
 
